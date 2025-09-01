@@ -86,6 +86,8 @@ onMounted(async () => {
   background: #f5f5f5;
   font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
   padding: 20px;
+  display: flex;
+  flex-direction: column;
 }
 
 /* CMA HTML Content Container */
@@ -95,11 +97,27 @@ onMounted(async () => {
   background: white;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   overflow: auto;
+  flex: 1;
+  margin-bottom: 20px;
 }
 
 /* Override any conflicting styles from the HTML content */
 .cma-html-container :deep(*) {
   box-sizing: border-box;
+}
+
+/* Prevent CMA HTML from affecting global layout */
+.cma-html-container :deep(html),
+.cma-html-container :deep(body) {
+  margin: 0;
+  padding: 0;
+  height: auto;
+  min-height: auto;
+  position: static;
+}
+
+.cma-html-container :deep(head) {
+  display: none;
 }
 
 /* Loading State */
@@ -131,11 +149,12 @@ onMounted(async () => {
 /* Navigation */
 .preview-navigation {
   max-width: 210mm;
-  margin: 32px auto 0;
+  margin: 0 auto;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 16px 0;
+  flex-shrink: 0;
 }
 
 .nav-button {

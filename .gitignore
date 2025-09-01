@@ -125,3 +125,4 @@ public
 local-*.html
 local-*.json
 local-*.pdf
+/.playwright-mcp
