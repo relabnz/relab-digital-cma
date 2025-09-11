@@ -4,52 +4,37 @@
     <div class="cma-html-container" v-if="htmlContent" v-html="htmlContent"></div>
 
     <!-- Loading state -->
-    <div class="loading-container" v-if="isLoading">
-      <div class="loading-spinner">
-        <i class="fas fa-spinner fa-spin"></i>
-        <p>{{ loadingMessage }}</p>
-      </div>
-    </div>
+    <LoadingSpinner v-if="isLoading" :message="loadingMessage" />
 
     <!-- Error state -->
-    <div class="error-container" v-if="error">
-      <div class="error-message">
-        <i class="fas fa-exclamation-triangle"></i>
-        <h3>{{ error.title }}</h3>
-        <p>{{ error.message }}</p>
-        <button class="nav-button" @click="goBack">
-          <i class="fas fa-home"></i>
-          Back to Landing
-        </button>
-      </div>
-    </div>
+    <ErrorDisplay
+      v-if="error"
+      :title="error.title"
+      :message="error.message"
+      @action="goBack"
+    />
 
     <!-- Navigation -->
-    <div class="preview-navigation" v-if="!error">
-      <button class="nav-button" @click="goBack">
-        <i class="fas fa-arrow-left"></i>
-        {{ isDebugMode ? 'Back to Landing' : 'Back to Landing' }}
-      </button>
-      <div class="preview-info">
-        <span>{{ getReportType() }}</span>
-        <span>{{ reportTitle }}</span>
-      </div>
-      <!-- PDF Download Button -->
-      <button 
-        v-if="shareData && shareData.PdfUrl" 
-        class="nav-button download-button" 
-        @click="downloadPDF"
-      >
-        <i class="fas fa-download"></i>
-        Download PDF
-      </button>
-    </div>
+    <NavigationBar
+      v-if="!error"
+      :back-button-text="isDebugMode ? 'Back to Landing' : 'Back to Landing'"
+      :report-type="getReportType()"
+      :report-title="reportTitle"
+      :show-download-button="true"
+      :pdf-url="shareData?.PdfUrl || ''"
+      :is-preview-mode="isPreviewMode"
+      @back="goBack"
+      @download="downloadPDF"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import LoadingSpinner from '../components/LoadingSpinner.vue'
+import ErrorDisplay from '../components/ErrorDisplay.vue'
+import NavigationBar from '../components/NavigationBar.vue'
 
 // Environment variables
 // Create a .env file with:
@@ -83,6 +68,11 @@ const shareCode = computed(() => {
 // Check if we're in debug mode
 const isDebugMode = computed(() => {
   return route.name === 'CMADebug'
+})
+
+// Check if we're in preview mode (when we have a share code, not debug)
+const isPreviewMode = computed(() => {
+  return shareCode.value && !isDebugMode.value
 })
 
 // Fetch share data from API
@@ -246,126 +236,6 @@ onMounted(async () => {
   display: none;
 }
 
-/* Loading State */
-.loading-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 400px;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.loading-spinner {
-  text-align: center;
-  color: #667eea;
-}
-
-.loading-spinner i {
-  font-size: 48px;
-  margin-bottom: 16px;
-}
-
-.loading-spinner p {
-  margin: 0;
-  font-size: 16px;
-  color: #666;
-}
-
-/* Error State */
-.error-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 400px;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.error-message {
-  text-align: center;
-  color: #e53e3e;
-  max-width: 500px;
-  padding: 32px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.error-message i {
-  font-size: 48px;
-  margin-bottom: 16px;
-  color: #e53e3e;
-}
-
-.error-message h3 {
-  margin: 0 0 16px 0;
-  font-size: 24px;
-  color: #2d3748;
-}
-
-.error-message p {
-  margin: 0 0 24px 0;
-  font-size: 16px;
-  color: #666;
-  line-height: 1.5;
-}
-
-/* Navigation */
-.preview-navigation {
-  max-width: 210mm;
-  margin: 0 auto;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 0;
-  flex-shrink: 0;
-}
-
-.nav-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s;
-  text-decoration: none;
-}
-
-.nav-button:hover {
-  background: #5a67d8;
-}
-
-.nav-button i {
-  font-size: 12px;
-}
-
-.download-button {
-  background: #38a169;
-}
-
-.download-button:hover {
-  background: #2f855a;
-}
-
-.preview-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
-  color: #666;
-  text-align: right;
-}
-
-.preview-info span {
-  font-weight: 500;
-}
 
 /* Print Styles */
 @media print {
@@ -392,19 +262,6 @@ onMounted(async () => {
 
   .cma-html-container {
     max-width: 100%;
-  }
-
-  .preview-navigation {
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .preview-info {
-    text-align: center;
-  }
-
-  .download-button {
-    order: -1;
   }
 }
 </style>
