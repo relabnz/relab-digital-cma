@@ -1,23 +1,23 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Home from '../views/Home.vue'
-import About from '../views/About.vue'
+import CMALanding from '../views/CMALanding.vue'
 import CMAPreview from '../views/CMAPreview.vue'
 
 const routes = [
   {
     path: '/',
-    name: 'Home',
-    component: Home
+    name: 'CMALanding',
+    component: CMALanding
   },
   {
-    path: '/about',
-    name: 'About',
-    component: About
-  },
-  {
-    path: '/cma-preview',
-    name: 'CMAPreview',
+    path: '/debug',
+    name: 'CMADebug',
     component: CMAPreview
+  },
+  {
+    path: '/:shareCode',
+    name: 'CMAShare',
+    component: CMAPreview,
+    props: true
   }
 ]
 

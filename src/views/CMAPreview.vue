@@ -7,49 +7,175 @@
     <div class="loading-container" v-if="isLoading">
       <div class="loading-spinner">
         <i class="fas fa-spinner fa-spin"></i>
-        <p>Loading CMA Preview...</p>
+        <p>{{ loadingMessage }}</p>
+      </div>
+    </div>
+
+    <!-- Error state -->
+    <div class="error-container" v-if="error">
+      <div class="error-message">
+        <i class="fas fa-exclamation-triangle"></i>
+        <h3>{{ error.title }}</h3>
+        <p>{{ error.message }}</p>
+        <button class="nav-button" @click="goBack">
+          <i class="fas fa-home"></i>
+          Back to Landing
+        </button>
       </div>
     </div>
 
     <!-- Navigation -->
-    <div class="preview-navigation">
-      <button class="nav-button" @click="$router.push('/')">
+    <div class="preview-navigation" v-if="!error">
+      <button class="nav-button" @click="goBack">
         <i class="fas fa-arrow-left"></i>
-        Back to Home
+        {{ isDebugMode ? 'Back to Landing' : 'Back to Landing' }}
       </button>
       <div class="preview-info">
-        <span>CMA Report Preview</span>
-        <span>35-Lake-Crescent-Hamilton-Lake</span>
+        <span>{{ getReportType() }}</span>
+        <span>{{ reportTitle }}</span>
       </div>
+      <!-- PDF Download Button -->
+      <button 
+        v-if="shareData && shareData.PdfUrl" 
+        class="nav-button download-button" 
+        @click="downloadPDF"
+      >
+        <i class="fas fa-download"></i>
+        Download PDF
+      </button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, onMounted, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
-// Props
+// Environment variables
+// Create a .env file with:
+// VITE_API_BASE_URL=https://api.relab.co.nz
+// VITE_CMA_REPORT_BASE_URL=https://relabdevstore.blob.core.windows.net/documents/CMAReport
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.relab.co.nz'
+const CMA_REPORT_BASE_URL = import.meta.env.VITE_CMA_REPORT_BASE_URL || 'https://relabdevstore.blob.core.windows.net/documents/CMAReport'
+
+// Props and route
 const route = useRoute()
+const router = useRouter()
 const htmlContent = ref('')
 const isLoading = ref(true)
+const loadingMessage = ref('Loading CMA Preview...')
+const shareData = ref(null)
+const error = ref(null)
 
-// Load CMA HTML file
+// Computed properties
+const reportTitle = computed(() => {
+  if (shareData.value && shareData.value.Guid) {
+    return shareData.value.Guid.replace(/-/g, ' ')
+  }
+  return '35-Lake-Crescent-Hamilton-Lake'
+})
+
+// Check if we have a share code in the URL
+const shareCode = computed(() => {
+  return route.params.shareCode || route.query.shareCode
+})
+
+// Check if we're in debug mode
+const isDebugMode = computed(() => {
+  return route.name === 'CMADebug'
+})
+
+// Fetch share data from API
+const fetchShareData = async (code) => {
+  try {
+    loadingMessage.value = 'Verifying share code...'
+    const response = await fetch(`${API_BASE_URL}/v1/property/cma-share/${code}`)
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Share code not found or has expired')
+      }
+      throw new Error('Failed to verify share code')
+    }
+    
+    const data = await response.json()
+    return data
+  } catch (err) {
+    console.error('Error fetching share data:', err)
+    throw err
+  }
+}
+
+// Load HTML content from blob storage
+const loadHtmlContent = async (guid) => {
+  try {
+    loadingMessage.value = 'Loading CMA report...'
+    const htmlUrl = `${CMA_REPORT_BASE_URL}/${guid}.html`
+    const response = await fetch(htmlUrl)
+    
+    if (!response.ok) {
+      throw new Error('Failed to load CMA report')
+    }
+    
+    const html = await response.text()
+    return html
+  } catch (err) {
+    console.error('Error loading HTML content:', err)
+    throw err
+  }
+}
+
+// Download PDF function
+const downloadPDF = () => {
+  if (shareData.value && shareData.value.PdfUrl) {
+    window.open(shareData.value.PdfUrl, '_blank')
+  }
+}
+
+// Navigation function
+const goBack = () => {
+  router.push('/')
+}
+
+// Get report type display text
+const getReportType = () => {
+  if (isDebugMode.value) {
+    return 'Debug CMA Preview'
+  } else if (shareData.value) {
+    return 'Shared CMA Report'
+  }
+  return 'CMA Report Preview'
+}
+
+// Main initialization function
 onMounted(async () => {
   try {
-    // Load the CMA HTML file
-    const response = await fetch('/35-Lake-Crescent-Hamilton-Lake-2025-09-02-08-48-56.html')
-    if (response.ok) {
-      const html = await response.text()
-      htmlContent.value = html
-      isLoading.value = false
+    if (shareCode.value) {
+      // Handle share code flow
+      shareData.value = await fetchShareData(shareCode.value)
+      htmlContent.value = await loadHtmlContent(shareData.value.Guid)
+    } else if (isDebugMode.value) {
+      // Handle debug mode - load local copy
+      loadingMessage.value = 'Loading debug CMA preview...'
+      const response = await fetch('/35-Lake-Crescent-Hamilton-Lake-2025-09-02-08-48-56.html')
+      if (response.ok) {
+        htmlContent.value = await response.text()
+      } else {
+        throw new Error('Failed to load debug CMA HTML file')
+      }
     } else {
-      console.error('Failed to load CMA HTML file')
-      isLoading.value = false
+      // This shouldn't happen with the new routing, but handle gracefully
+      throw new Error('No valid CMA source found')
     }
-  } catch (error) {
-    console.error('Error loading CMA HTML file:', error)
+    
     isLoading.value = false
+  } catch (err) {
+    console.error('Error loading CMA:', err)
+    isLoading.value = false
+    error.value = {
+      title: 'Unable to Load CMA Report',
+      message: err.message || 'An unexpected error occurred while loading the CMA report.'
+    }
   }
 })
 </script>
@@ -146,6 +272,45 @@ onMounted(async () => {
   color: #666;
 }
 
+/* Error State */
+.error-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.error-message {
+  text-align: center;
+  color: #e53e3e;
+  max-width: 500px;
+  padding: 32px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.error-message i {
+  font-size: 48px;
+  margin-bottom: 16px;
+  color: #e53e3e;
+}
+
+.error-message h3 {
+  margin: 0 0 16px 0;
+  font-size: 24px;
+  color: #2d3748;
+}
+
+.error-message p {
+  margin: 0 0 24px 0;
+  font-size: 16px;
+  color: #666;
+  line-height: 1.5;
+}
+
 /* Navigation */
 .preview-navigation {
   max-width: 210mm;
@@ -179,6 +344,14 @@ onMounted(async () => {
 
 .nav-button i {
   font-size: 12px;
+}
+
+.download-button {
+  background: #38a169;
+}
+
+.download-button:hover {
+  background: #2f855a;
 }
 
 .preview-info {
@@ -228,6 +401,10 @@ onMounted(async () => {
 
   .preview-info {
     text-align: center;
+  }
+
+  .download-button {
+    order: -1;
   }
 }
 </style>
