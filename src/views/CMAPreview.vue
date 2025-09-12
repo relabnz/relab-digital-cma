@@ -12,8 +12,48 @@
       </ul>
     </div>
 
-    <!-- CMA HTML Preview -->
-    <div class="cma-html-container" v-if="htmlContent" v-html="htmlContent"></div>
+    <!-- Responsive Controls -->
+    <div class="responsive-controls" v-if="htmlContent">
+      <div class="zoom-controls">
+        <button 
+          @click="adjustZoom(-0.1)" 
+          class="zoom-btn" 
+          :disabled="currentZoom <= 0.3"
+          title="Zoom Out (Ctrl + -)"
+        >
+          <i class="fas fa-search-minus"></i>
+        </button>
+        <span class="zoom-display" title="Current zoom level">{{ Math.round(currentZoom * 100) }}%</span>
+        <button 
+          @click="adjustZoom(0.1)" 
+          class="zoom-btn" 
+          :disabled="currentZoom >= 2.0"
+          title="Zoom In (Ctrl + +)"
+        >
+          <i class="fas fa-search-plus"></i>
+        </button>
+        <button 
+          @click="resetZoom" 
+          class="zoom-btn reset-btn"
+          title="Reset to Optimal Zoom (Ctrl + 0)"
+        >
+          <i class="fas fa-expand-arrows-alt"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- CMA HTML Preview with Responsive Wrapper -->
+    <div class="cma-html-container" v-if="htmlContent">
+      <div 
+        class="cma-responsive-wrapper" 
+        :style="{ 
+          transform: `scale(${currentZoom})`, 
+          transformOrigin: 'top center',
+          width: `${100 / currentZoom}%`
+        }"
+        v-html="htmlContent"
+      ></div>
+    </div>
 
     <!-- Loading state -->
     <LoadingSpinner v-if="isLoading" :message="loadingMessage" />
@@ -42,7 +82,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 import ErrorDisplay from '../components/ErrorDisplay.vue'
@@ -64,6 +104,8 @@ const loadingMessage = ref('Loading CMA Preview...')
 const shareData = ref(null)
 const error = ref(null)
 const navigationSections = ref([])
+const currentZoom = ref(1)
+const baseZoom = ref(1)
 
 // Computed properties
 const reportTitle = computed(() => {
@@ -159,6 +201,22 @@ const processDigitalCmaData = (data) => {
           
           .digital-cma-display .cma-section:last-child {
             border-bottom: none;
+          }
+          
+          /* Responsive CMA Content */
+          .cma-page {
+            max-width: 100% !important;
+            width: 794px !important;
+            height: auto !important;
+            min-height: 1123px;
+            margin: 0 auto !important;
+            box-sizing: border-box !important;
+          }
+          
+          /* Ensure content doesn't overflow */
+          .cma-responsive-wrapper * {
+            max-width: 100% !important;
+            box-sizing: border-box !important;
           }
         </style>
       </head>
@@ -284,6 +342,32 @@ const getReportType = () => {
   return 'CMA Report Preview'
 }
 
+// Zoom control functions
+const calculateOptimalZoom = () => {
+  const container = document.querySelector('.cma-html-container')
+  if (!container) return 1
+
+  const containerWidth = container.clientWidth
+  const contentWidth = 794 // Fixed width from CMA export
+  const maxZoom = Math.min(containerWidth / contentWidth, 1.2) // Don't exceed 120% on auto-fit
+  
+  return Math.max(0.3, Math.min(maxZoom, 1)) // Ensure zoom is between 30% and 100%
+}
+
+const adjustZoom = (delta) => {
+  const newZoom = Math.max(0.3, Math.min(2.0, currentZoom.value + delta))
+  currentZoom.value = Math.round(newZoom * 10) / 10 // Round to 1 decimal place
+}
+
+const resetZoom = () => {
+  currentZoom.value = baseZoom.value
+}
+
+const setOptimalZoom = () => {
+  baseZoom.value = calculateOptimalZoom()
+  currentZoom.value = baseZoom.value
+}
+
 // Main initialization function
 onMounted(async () => {
   try {
@@ -307,6 +391,45 @@ onMounted(async () => {
     }
     
     isLoading.value = false
+    
+    // Set optimal zoom after content is loaded
+    await nextTick()
+    setOptimalZoom()
+    
+    // Add window resize listener for responsive behavior
+    const handleResize = () => {
+      setOptimalZoom()
+    }
+    window.addEventListener('resize', handleResize)
+    
+    // Add keyboard shortcuts for zoom control
+    const handleKeydown = (event) => {
+      if (event.ctrlKey || event.metaKey) {
+        switch (event.key) {
+          case '=':
+          case '+':
+            event.preventDefault()
+            adjustZoom(0.1)
+            break
+          case '-':
+            event.preventDefault()
+            adjustZoom(-0.1)
+            break
+          case '0':
+            event.preventDefault()
+            resetZoom()
+            break
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeydown)
+    
+    // Cleanup on unmount
+    onUnmounted(() => {
+      window.removeEventListener('resize', handleResize)
+      window.removeEventListener('keydown', handleKeydown)
+    })
+    
   } catch (err) {
     console.error('Error loading CMA:', err)
     isLoading.value = false
@@ -386,15 +509,92 @@ onMounted(async () => {
   background-color: #e3f2fd;
 }
 
+/* Responsive Controls */
+.responsive-controls {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 12px;
+  z-index: 1001;
+  border: 1px solid #e0e0e0;
+}
+
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zoom-btn {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  color: #495057;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+}
+
+.zoom-btn:hover:not(:disabled) {
+  background: #e9ecef;
+  border-color: #adb5bd;
+  transform: translateY(-1px);
+}
+
+.zoom-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.zoom-btn.reset-btn {
+  background: #2196f3;
+  color: white;
+  border-color: #2196f3;
+}
+
+.zoom-btn.reset-btn:hover:not(:disabled) {
+  background: #1976d2;
+  border-color: #1976d2;
+}
+
+.zoom-display {
+  font-weight: 600;
+  color: #495057;
+  font-size: 14px;
+  min-width: 50px;
+  text-align: center;
+}
+
 /* CMA HTML Content Container */
 .cma-html-container {
-  max-width: 210mm;
+  width: 100%;
   margin: 0 auto;
-  background: white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: #f5f5f5;
   overflow: auto;
   flex: 1;
   margin-bottom: 20px;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+/* Responsive Wrapper for CMA Content */
+.cma-responsive-wrapper {
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  overflow: hidden;
+  transition: transform 0.3s ease;
+  transform-origin: top center;
 }
 
 /* Override any conflicting styles from the HTML content */
@@ -437,11 +637,11 @@ onMounted(async () => {
 /* Responsive Design */
 @media (max-width: 768px) {
   .cma-preview-simple {
-    padding: 16px;
+    padding: 8px;
   }
 
   .cma-html-container {
-    max-width: 100%;
+    padding: 10px;
   }
 
   .cma-navigation {
@@ -450,6 +650,61 @@ onMounted(async () => {
     right: auto;
     margin-bottom: 20px;
     max-width: 100%;
+  }
+
+  .responsive-controls {
+    position: relative;
+    top: auto;
+    left: auto;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .zoom-controls {
+    justify-content: center;
+  }
+
+  .zoom-btn {
+    min-width: 32px;
+    height: 32px;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  .zoom-display {
+    font-size: 12px;
+    min-width: 45px;
+  }
+}
+
+@media (max-width: 480px) {
+  .cma-preview-simple {
+    padding: 4px;
+  }
+
+  .cma-html-container {
+    padding: 8px;
+  }
+
+  .responsive-controls {
+    padding: 8px;
+    margin-bottom: 12px;
+  }
+
+  .zoom-controls {
+    gap: 6px;
+  }
+
+  .zoom-btn {
+    min-width: 28px;
+    height: 28px;
+    padding: 4px 6px;
+    font-size: 11px;
+  }
+
+  .zoom-display {
+    font-size: 11px;
+    min-width: 40px;
   }
 }
 </style>
