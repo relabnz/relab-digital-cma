@@ -1,4 +1,11 @@
-/* CMA Fonts - Global declarations */
+/* CMA Fonts - Now loaded dynamically from header content */
+
+/* Global Digital CMA Styles */
+.digital-cma .edit-feature {
+  display: none !important;
+}
+
+/* Fallback fonts for compatibility */
 @font-face {
   font-family: 'HarcourtsScript';
   src: url('https://relab.blob.core.windows.net/fonts/NewAge/HarcourtsScript.otf') format('opentype');

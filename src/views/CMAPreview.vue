@@ -109,26 +109,87 @@ const fetchShareData = async (code) => {
   }
 }
 
-// Load HTML content from blob storage
-const loadHtmlContent = async (guid) => {
+// Load digital CMA content from API
+const loadDigitalCmaContent = async (guid) => {
   try {
     loadingMessage.value = 'Loading CMA report...'
-    const htmlUrl = `${CMA_REPORT_BASE_URL}/${guid}.html`
-    const response = await fetch(htmlUrl)
+    const apiUrl = `${API_BASE_URL}/v1/report/digital-cma/${guid}`
+    const response = await fetch(apiUrl)
     
     if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('CMA report not found')
+      }
       throw new Error('Failed to load CMA report')
     }
     
-    const html = await response.text()
-    return processHtmlForDigitalCMA(html)
+    const data = await response.json()
+    return processDigitalCmaData(data)
   } catch (err) {
-    console.error('Error loading HTML content:', err)
+    console.error('Error loading digital CMA content:', err)
     throw err
   }
 }
 
-// Process HTML content for digital CMA display
+// Process digital CMA data from API
+const processDigitalCmaData = (data) => {
+  // Create HTML structure with header and body parts
+  const headerHtml = data.Header || ''
+  const bodyParts = data.Body || []
+  
+  // Create a complete HTML document
+  const htmlContent = `
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          ${headerHtml}
+          
+          /* Additional Digital CMA Styles */
+          .digital-cma .edit-feature {
+            display: none !important;
+          }
+          
+          .digital-cma-display .cma-section {
+            scroll-margin-top: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+          }
+          
+          .digital-cma-display .cma-section:last-child {
+            border-bottom: none;
+          }
+        </style>
+      </head>
+      <body class="digital-cma digital-cma-display">
+        ${bodyParts.join('\n')}
+      </body>
+    </html>
+  `
+  
+  // Parse the HTML to extract navigation sections
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(htmlContent, 'text/html')
+  
+  // Extract navigation sections
+  const sections = doc.querySelectorAll('[data-section-id]')
+  const navSections = []
+  
+  sections.forEach(section => {
+    const id = section.getAttribute('data-section-id')
+    const title = section.getAttribute('data-section-title')
+    if (id && title) {
+      navSections.push({ id, title })
+    }
+  })
+  
+  navigationSections.value = navSections
+  
+  return htmlContent
+}
+
+// Process HTML content for digital CMA display (legacy method for debug mode)
 const processHtmlForDigitalCMA = (html) => {
   // Create a temporary DOM element to parse the HTML
   const parser = new DOMParser()
@@ -152,6 +213,10 @@ const processHtmlForDigitalCMA = (html) => {
   const style = doc.createElement('style')
   style.textContent = `
     /* Digital CMA Styles */
+    .digital-cma .edit-feature {
+      display: none !important;
+    }
+    
     .digital-cma-display .cma-section:not(.cma-first-page) .cma-header {
       display: none !important;
     }
@@ -223,11 +288,11 @@ const getReportType = () => {
 onMounted(async () => {
   try {
     if (shareCode.value) {
-      // Handle share code flow
+      // Handle share code flow - use new API
       shareData.value = await fetchShareData(shareCode.value)
-      htmlContent.value = await loadHtmlContent(shareData.value.Guid)
+      htmlContent.value = await loadDigitalCmaContent(shareData.value.Guid)
     } else if (isDebugMode.value) {
-      // Handle debug mode - load local copy
+      // Handle debug mode - load local copy (legacy method)
       loadingMessage.value = 'Loading debug CMA preview...'
       const response = await fetch('/35-Lake-Crescent-Hamilton-Lake-2025-09-02-08-48-56.html')
       if (response.ok) {
@@ -254,30 +319,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* CMA Fonts - Loaded from HTML file */
-@font-face {
-  font-family: 'HarcourtsScript';
-  src: url('https://relab.blob.core.windows.net/fonts/NewAge/HarcourtsScript.otf') format('opentype');
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'SourceSansPro-Bold';
-  src: url('https://relab.blob.core.windows.net/fonts/NewAge/SourceSansPro-Bold.otf') format('opentype');
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'SourceSansPro-Regular';
-  src: url('https://relab.blob.core.windows.net/fonts/NewAge/SourceSansPro-Regular.otf') format('opentype');
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'SourceSansPro-Semibold';
-  src: url('https://relab.blob.core.windows.net/fonts/NewAge/SourceSansPro-Semibold.otf') format('opentype');
-  font-display: swap;
-}
+/* CMA Fonts - Now loaded from header in HTML content */
 
 /* CMA HTML Preview Container */
 .cma-preview-simple {
