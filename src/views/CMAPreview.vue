@@ -1,5 +1,17 @@
 <template>
   <div class="cma-preview-simple">
+    <!-- Navigation Menu -->
+    <div class="cma-navigation" v-if="htmlContent && navigationSections.length > 0">
+      <h3>CMA Sections</h3>
+      <ul class="nav-list">
+        <li v-for="section in navigationSections" :key="section.id">
+          <a @click="scrollToSection(section.id)" :href="`#${section.id}`">
+            {{ section.title }}
+          </a>
+        </li>
+      </ul>
+    </div>
+
     <!-- CMA HTML Preview -->
     <div class="cma-html-container" v-if="htmlContent" v-html="htmlContent"></div>
 
@@ -51,6 +63,7 @@ const isLoading = ref(true)
 const loadingMessage = ref('Loading CMA Preview...')
 const shareData = ref(null)
 const error = ref(null)
+const navigationSections = ref([])
 
 // Computed properties
 const reportTitle = computed(() => {
@@ -108,10 +121,79 @@ const loadHtmlContent = async (guid) => {
     }
     
     const html = await response.text()
-    return html
+    return processHtmlForDigitalCMA(html)
   } catch (err) {
     console.error('Error loading HTML content:', err)
     throw err
+  }
+}
+
+// Process HTML content for digital CMA display
+const processHtmlForDigitalCMA = (html) => {
+  // Create a temporary DOM element to parse the HTML
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+  
+  // Extract navigation sections
+  const sections = doc.querySelectorAll('[data-section-id]')
+  const navSections = []
+  
+  sections.forEach(section => {
+    const id = section.getAttribute('data-section-id')
+    const title = section.getAttribute('data-section-title')
+    if (id && title) {
+      navSections.push({ id, title })
+    }
+  })
+  
+  navigationSections.value = navSections
+  
+  // Add CSS classes for digital CMA styling
+  const style = doc.createElement('style')
+  style.textContent = `
+    /* Digital CMA Styles */
+    .digital-cma-display .cma-section:not(.cma-first-page) .cma-header {
+      display: none !important;
+    }
+    
+    .digital-cma-display .cma-section:not(.cma-first-page) [data-cma-element="header"] {
+      display: none !important;
+    }
+    
+    /* Show only first page header */
+    .digital-cma-display .cma-first-page .cma-header,
+    .digital-cma-display .cma-first-page [data-cma-element="header"] {
+      display: block !important;
+    }
+    
+    /* Section styling */
+    .digital-cma-display .cma-section {
+      scroll-margin-top: 20px;
+      border-bottom: 1px solid #e0e0e0;
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+    }
+    
+    .digital-cma-display .cma-section:last-child {
+      border-bottom: none;
+    }
+  `
+  
+  doc.head.appendChild(style)
+  
+  // Add digital CMA class to body
+  if (doc.body) {
+    doc.body.classList.add('digital-cma-display')
+  }
+  
+  return doc.documentElement.outerHTML
+}
+
+// Scroll to section function
+const scrollToSection = (sectionId) => {
+  const element = document.getElementById(sectionId)
+  if (element) {
+    element.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 }
 
@@ -149,7 +231,8 @@ onMounted(async () => {
       loadingMessage.value = 'Loading debug CMA preview...'
       const response = await fetch('/35-Lake-Crescent-Hamilton-Lake-2025-09-02-08-48-56.html')
       if (response.ok) {
-        htmlContent.value = await response.text()
+        const html = await response.text()
+        htmlContent.value = processHtmlForDigitalCMA(html)
       } else {
         throw new Error('Failed to load debug CMA HTML file')
       }
@@ -204,6 +287,61 @@ onMounted(async () => {
   padding: 20px;
   display: flex;
   flex-direction: column;
+}
+
+/* Navigation Menu Styles */
+.cma-navigation {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 16px;
+  max-width: 250px;
+  z-index: 1000;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.cma-navigation h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 8px;
+}
+
+.nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-list li {
+  margin-bottom: 4px;
+}
+
+.nav-list a {
+  display: block;
+  padding: 8px 12px;
+  text-decoration: none;
+  color: #555;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.nav-list a:hover {
+  background-color: #f0f8ff;
+  color: #2196f3;
+  transform: translateX(2px);
+}
+
+.nav-list a:active {
+  background-color: #e3f2fd;
 }
 
 /* CMA HTML Content Container */
@@ -261,6 +399,14 @@ onMounted(async () => {
   }
 
   .cma-html-container {
+    max-width: 100%;
+  }
+
+  .cma-navigation {
+    position: relative;
+    top: auto;
+    right: auto;
+    margin-bottom: 20px;
     max-width: 100%;
   }
 }
