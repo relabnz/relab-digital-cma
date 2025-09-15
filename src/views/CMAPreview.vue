@@ -239,6 +239,21 @@ const processDigitalCmaData = (data) => {
   // Set the CMA header for fixed display
   cmaHeaderHtml.value = firstPageHeader
   
+  // Extract and set page title from RawJsonData
+  if (data.RawJsonData) {
+    try {
+      const rawData = JSON.parse(data.RawJsonData)
+      const subjectAddress = rawData.SourceProperty?.displayAddress || 
+                            rawData.Address || 
+                            rawData.SourceProperty?.address
+      if (subjectAddress) {
+        document.title = `CMA Report - ${subjectAddress}`
+      }
+    } catch (e) {
+      console.warn('Could not parse RawJsonData for page title:', e)
+    }
+  }
+  
   // Extract section titles and track seen titles to avoid duplicates
   const sectionTitles = []
   const seenSectionTitles = new Set()
@@ -297,6 +312,10 @@ const processDigitalCmaData = (data) => {
       content = `<div class="section-label">${sectionInfo.title}</div>${content}`
     }
     
+    // Replace margin-top: auto with fixed padding in inline styles
+    content = content.replace(/margin-top:\s*auto;?/gi, 'padding-top: 20px;')
+    content = content.replace(/margin-top:\s*auto\s*;/gi, 'padding-top: 20px;')
+    
     return content
   })
   
@@ -338,6 +357,54 @@ const processDigitalCmaData = (data) => {
             font-family: 'Nexa-Light', sans-serif;
           }
           
+          /* Mobile content optimizations */
+          @media (max-width: 767px) {
+            /* Improve text readability on mobile */
+            .cma-page-wrapper {
+              font-size: 14px;
+              line-height: 1.4;
+              width: 100% !important;
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+            
+            /* Make tables more readable on mobile */
+            .cma-page-wrapper table {
+              font-size: 12px !important;
+              width: 100% !important;
+            }
+            
+            /* Improve image scaling on mobile */
+            .cma-page-wrapper img {
+              max-width: 100% !important;
+              width: 100% !important;
+              height: auto !important;
+            }
+            
+            /* Minimize all margins and padding for mobile */
+            .cma-page-wrapper [style*="padding"] {
+              padding-left: 5px !important;
+              padding-right: 5px !important;
+            }
+            
+            .cma-page-wrapper [style*="margin"] {
+              margin-left: 0 !important;
+              margin-right: 0 !important;
+            }
+            
+            /* Ensure content uses full width */
+            .cma-page-wrapper > div {
+              width: 100% !important;
+              max-width: 100% !important;
+            }
+            
+            /* Minimize spacing in content areas */
+            .cma-page-wrapper article {
+              padding: 5px !important;
+              margin: 0 !important;
+            }
+          }
+          
           .digital-cma-display .cma-section {
             scroll-margin-top: 20px;
             border-bottom: 1px solid #e0e0e0;
@@ -365,30 +432,40 @@ const processDigitalCmaData = (data) => {
             box-sizing: border-box !important;
           }
           
-          /* A4 Page styling like in relab-web-app */
+          /* A4 Page styling with content-based height */
           .cma-page-wrapper {
             width: 21cm;
-            min-height: 29.7cm;
-            margin: 0 auto 20px auto;
+            height: auto;
+            margin: 0 auto;
             background: white;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            border-radius: 4px;
-            overflow: hidden;
+            overflow: visible;
             position: relative;
           }
           
-          /* Ensure proper spacing between pages */
+          /* No spacing between pages for seamless flow */
           .cma-page-wrapper:not(:last-child) {
-            margin-bottom: 30px;
+            margin-bottom: 0;
           }
           
           /* Page content styling */
           .cma-page {
             width: 21cm;
-            min-height: 29.7cm;
+            height: auto;
             margin: 0;
             padding: 0;
-            overflow: hidden;
+            overflow: visible;
+          }
+          
+          /* Remove margin-top: auto and replace with fixed padding */
+          .cma-page-wrapper [style*="margin-top: auto"] {
+            margin-top: 0 !important;
+            padding-top: 20px !important;
+          }
+          
+          /* Fix any elements using margin-top: auto for spacing */
+          .cma-page-wrapper div[style*="margin-top: auto"] {
+            margin-top: 0 !important;
+            padding-top: 20px !important;
           }
         </style>
       </head>
@@ -708,17 +785,72 @@ onMounted(async () => {
   }
 }
 
-/* Responsive adjustments for smaller screens */
-@media (max-width: 1023px) {
+/* Tablet adjustments (768px - 1023px) */
+@media (max-width: 1023px) and (min-width: 768px) {
+  .cma-html-container {
+    padding-top: 130px;
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+  
   .cma-page-wrapper {
     width: 100% !important;
-    min-height: auto !important;
-    margin: 0 0 20px 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    max-width: 90% !important;
   }
   
   .cma-page {
     width: 100% !important;
-    min-height: auto !important;
+    height: auto !important;
+  }
+  
+  .cma-fixed-header {
+    padding: 10px 15px;
+  }
+}
+
+/* Mobile adjustments (up to 767px) */
+@media (max-width: 767px) {
+  .cma-html-container {
+    padding-top: 140px;
+    padding-left: 5px;
+    padding-right: 5px;
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  .cma-responsive-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .cma-page-wrapper {
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+  }
+  
+  .cma-page {
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .cma-fixed-header {
+    padding: 8px 5px;
+    font-size: 14px;
+  }
+  
+  .section-label {
+    font-size: 16px;
+    padding: 10px 5px;
+    margin: 0 0 10px 0;
   }
 }
 
@@ -861,7 +993,7 @@ onMounted(async () => {
   background-color: #e3f2fd;
 }
 
-/* Responsive Controls */
+/* Responsive Controls - Hidden on large screens */
 .responsive-controls {
   position: fixed;
   top: 130px; /* Below the fixed header */
@@ -872,6 +1004,94 @@ onMounted(async () => {
   padding: 12px;
   z-index: 1100; /* Same as toggle button */
   border: 1px solid #e0e0e0;
+  display: none; /* Hidden by default on large screens */
+}
+
+/* Show zoom controls only on smaller screens */
+@media (max-width: 1023px) {
+  .responsive-controls {
+    display: block;
+  }
+}
+
+/* Tablet responsive controls */
+@media (max-width: 1023px) and (min-width: 768px) {
+  .responsive-controls {
+    top: 140px;
+    left: 15px;
+  }
+  
+  .nav-toggle-btn {
+    top: 140px;
+    right: 15px;
+  }
+  
+  .cma-navigation {
+    top: 140px;
+    width: 320px;
+  }
+}
+
+/* Mobile responsive controls */
+@media (max-width: 767px) {
+  .responsive-controls {
+    top: 150px;
+    left: 5px;
+    padding: 5px;
+  }
+  
+  .zoom-controls {
+    gap: 4px;
+  }
+  
+  .zoom-btn {
+    min-width: 30px;
+    height: 30px;
+    padding: 4px 6px;
+    font-size: 11px;
+  }
+  
+  .zoom-display {
+    font-size: 11px;
+    min-width: 35px;
+    padding: 2px 4px;
+  }
+  
+  .nav-toggle-btn {
+    top: 150px;
+    right: 5px;
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+  
+  .nav-toggle-text {
+    display: none;
+  }
+  
+  .cma-navigation {
+    top: 150px;
+    width: 100%;
+    right: -100%;
+    border-radius: 0;
+    height: calc(100vh - 150px);
+    margin: 0;
+    padding: 0;
+  }
+  
+  .cma-navigation.visible {
+    right: 0;
+  }
+  
+  .nav-list {
+    padding: 5px;
+    margin: 0;
+  }
+  
+  .nav-list a {
+    padding: 8px 10px;
+    font-size: 14px;
+    margin: 1px 0;
+  }
 }
 
 .zoom-controls {
@@ -931,8 +1151,6 @@ onMounted(async () => {
 /* Responsive Wrapper for CMA Content */
 .cma-responsive-wrapper {
   background: white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  border-radius: 4px;
   overflow: hidden;
   transition: transform 0.3s ease;
   transform-origin: top center;
