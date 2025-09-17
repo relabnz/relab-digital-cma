@@ -1,0 +1,50 @@
+# Node.js with Vue
+# Build a Node.js project that uses Vue.
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
+
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- task: NodeTool@0
+  inputs:
+    versionSpec: '20.x'
+  displayName: 'Install Node.js'
+
+
+# Microsoft reference: https://learn.microsoft.com/en-us/azure/devops/pipelines/release/caching?view=azure-devops&tabs=npm#nodejsnpm
+# NPM config reference: https://docs.npmjs.com/cli/v11/using-npm/config
+- task: Cache@2
+  inputs:
+    key: 'npm | $(Agent.OS) | package-lock.json'
+    restoreKeys: |
+      npm | $(Agent.OS)
+    path: $(Pipeline.Workspace)/.npm
+  displayName: 'Restore npm cache'
+
+- script: |
+    npm ci --cache $(Pipeline.Workspace)/.npm --prefer-offline
+    npm run build
+  displayName: 'npm ci and build'
+  env:
+    VITE_API_BASE_URL: 'https://api.relab.co.nz'
+    
+
+
+- task: ArchiveFiles@2 
+  inputs: 
+    rootFolderOrFile: '$(System.DefaultWorkingDirectory)/dist' 
+    includeRootFolder: true 
+    archiveType: 'zip' 
+    archiveFile: '$(Build.ArtifactStagingDirectory)/digital-cma-output.zip' 
+    replaceExistingArchive: true 
+
+- task: PublishBuildArtifacts@1 
+  inputs: 
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)/digital-cma-output.zip' 
+    ArtifactName: 'drop' 
+    publishLocation: 'Container'
