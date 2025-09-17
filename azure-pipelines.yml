@@ -14,11 +14,6 @@ steps:
   inputs:
     versionSpec: '20.x'
   displayName: 'Install Node.js'
-steps:
-- task: NodeTool@0
-  inputs:
-    versionSpec: '20.x'
-  displayName: 'Install Node.js'
 
 
 # Microsoft reference: https://learn.microsoft.com/en-us/azure/devops/pipelines/release/caching?view=azure-devops&tabs=npm#nodejsnpm
