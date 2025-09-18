@@ -38,7 +38,7 @@ steps:
 - task: ArchiveFiles@2 
   inputs: 
     rootFolderOrFile: '$(System.DefaultWorkingDirectory)/dist' 
-    includeRootFolder: true 
+    includeRootFolder: false 
     archiveType: 'zip' 
     archiveFile: '$(Build.ArtifactStagingDirectory)/digital-cma-output.zip' 
     replaceExistingArchive: true 
