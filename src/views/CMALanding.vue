@@ -11,7 +11,7 @@
     <div class="landing-header">
       <div class="header-content">
         <div class="logo-section">
-          <img :src="`/content/images/main_logo_blk.svg`" alt="Relab Logo" class="relab-logo" />
+          <img src="/content/main_logo_blk.svg" alt="Relab Logo" class="relab-logo" />
         </div>
         <h1 class="main-title Beatrice-Medium">
           Digital CMA Portal
